@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Quarkus GitHub App - verified webhooks to SQS, asynchronous issue comments.
+
+Parameters:
+  GitHubAppId:
+    Type: String
+    AllowedPattern: '^[0-9]+$'
+  GitHubAppWebhookSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+  GitHubAppPrivateKey:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+    Description: Complete PEM with quoted header/footer; newlines may be replaced by spaces.
+
+Globals:
+  Function:
+    Handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest
+    Runtime: java25
+    Architectures: [x86_64]
+    MemorySize: 1024
+    Timeout: 30
+    AutoPublishAlias: live
+    SnapStart:
+      ApplyOn: PublishedVersions
+    Environment:
+      Variables:
+        JAVA_TOOL_OPTIONS: >-
+          --add-opens=java.base/java.lang=ALL-UNNAMED
+          --add-opens=java.base/java.nio=ALL-UNNAMED
+          --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
+        QUARKUS_GITHUB_APP_APP_ID: !Ref GitHubAppId
+        QUARKUS_GITHUB_APP_PRIVATE_KEY: !Ref GitHubAppPrivateKey
+
+Resources:
+  WebhookDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
+  WebhookQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 540
+      MessageRetentionPeriod: 345600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WebhookDeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+  DeliveryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deliveryId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deliveryId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  ReceiverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: receiver/target/function.zip
+      Environment:
+        Variables:
+          QUARKUS_GITHUB_APP_WEBHOOK_SECRET: !Ref GitHubAppWebhookSecret
+          WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt WebhookQueue.QueueName
+      Events:
+        Webhook:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: POST
+
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: worker/target/function.zip
+      Timeout: 90
+      Environment:
+        Variables:
+          DELIVERY_TABLE: !Ref DeliveryTable
+          WEBHOOK_QUEUE_URL: !Ref WebhookQueue
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt WebhookQueue.QueueName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DeliveryTable
+      Events:
+        QueuedWebhooks:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WebhookQueue.Arn
+            BatchSize: 5
+            FunctionResponseTypes: [ReportBatchItemFailures]
+
+Outputs:
+  WebhookUrl:
+    Description: GitHub App webhook endpoint
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/'
+  QueueUrl:
+    Value: !Ref WebhookQueue
+  DeadLetterQueueUrl:
+    Value: !Ref WebhookDeadLetterQueue
+  DeliveryTableName:
+    Value: !Ref DeliveryTable

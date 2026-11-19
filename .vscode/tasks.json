@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "local-services",
+            "type": "shell",
+            "command": "docker compose up -d && bash scripts/init-local.sh",
+            "problemMatcher": []
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "./mvnw -B install -DskipTests",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "prepare-local",
+            "dependsOn": ["local-services", "build"],
+            "dependsOrder": "parallel",
+            "problemMatcher": []
+        },
+        {
+            "label": "receiver:dev",
+            "type": "shell",
+            "command": "if [ -f .envrc ]; then source .envrc; fi; ./mvnw -f receiver/pom.xml quarkus:dev -Ddebug=5005",
+            "isBackground": true,
+            "problemMatcher": {"pattern": [{"regexp": "\\b\\B", "file": 1, "location": 2, "message": 3}], "background": {"activeBegins": true, "beginsPattern": "^.*Scanning for projects.*", "endsPattern": "^.*Listening for transport dt_socket at address.*"}}
+        },
+        {
+            "label": "worker:dev",
+            "type": "shell",
+            "command": "if [ -f .envrc ]; then source .envrc; fi; unset QUARKUS_GITHUB_APP_WEBHOOK_PROXY_URL; ./mvnw -f worker/pom.xml quarkus:dev -Ddebug=5006",
+            "isBackground": true,
+            "problemMatcher": {"pattern": [{"regexp": "\\b\\B", "file": 1, "location": 2, "message": 3}], "background": {"activeBegins": true, "beginsPattern": "^.*Scanning for projects.*", "endsPattern": "^.*Listening for transport dt_socket at address.*"}}
+        },
+        {
+            "label": "receiver:test-debug",
+            "type": "shell",
+            "command": "./mvnw -f receiver/pom.xml test -Dmaven.surefire.debug",
+            "isBackground": true,
+            "problemMatcher": {"pattern": [{"regexp": "\\b\\B", "file": 1, "location": 2, "message": 3}], "background": {"activeBegins": true, "beginsPattern": "^.*Scanning for projects.*", "endsPattern": "^.*Listening for transport dt_socket at address.*"}}
+        },
+        {
+            "label": "worker:test-debug",
+            "type": "shell",
+            "command": "./mvnw -f worker/pom.xml test -Dmaven.surefire.debug",
+            "isBackground": true,
+            "problemMatcher": {"pattern": [{"regexp": "\\b\\B", "file": 1, "location": 2, "message": 3}], "background": {"activeBegins": true, "beginsPattern": "^.*Scanning for projects.*", "endsPattern": "^.*Listening for transport dt_socket at address.*"}}
+        }
+    ]
+}

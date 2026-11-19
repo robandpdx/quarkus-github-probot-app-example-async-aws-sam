@@ -1,0 +1,20 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: '25'
+          cache: maven
+      - run: ./mvnw -B verify
+      - uses: aws-actions/setup-sam@v2
+      - run: sam validate --lint --region us-west-2

@@ -1,0 +1,9 @@
+# Copy to .envrc; this file contains placeholders only. Never commit .envrc or private keys.
+export QUARKUS_GITHUB_APP_APP_ID=123456
+export QUARKUS_GITHUB_APP_WEBHOOK_SECRET=replace-with-your-webhook-secret
+export QUARKUS_GITHUB_APP_PRIVATE_KEY="$(cat ./app.private-key.pem)"
+export QUARKUS_GITHUB_APP_WEBHOOK_PROXY_URL=https://smee.io/your-channel
+
+# Local AWS emulators use dummy credentials internally; real AWS credentials are NOT needed locally.
+# For sam deploy, use your normal AWS profile or credential provider.
+export AWS_REGION=us-west-2

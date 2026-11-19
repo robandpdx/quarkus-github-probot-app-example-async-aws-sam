@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {"type": "java", "name": "Debug receiver", "request": "attach", "hostName": "localhost", "port": 5005, "preLaunchTask": "receiver:dev"},
+        {"type": "java", "name": "Debug worker", "request": "attach", "hostName": "localhost", "port": 5006, "preLaunchTask": "worker:dev"},
+        {"type": "java", "name": "Debug receiver tests", "request": "attach", "hostName": "localhost", "port": 5005, "preLaunchTask": "receiver:test-debug"},
+        {"type": "java", "name": "Debug worker tests", "request": "attach", "hostName": "localhost", "port": 5005, "preLaunchTask": "worker:test-debug"}
+    ],
+    "compounds": [
+        {"name": "Debug async GitHub App", "configurations": ["Debug receiver", "Debug worker"], "preLaunchTask": "prepare-local", "stopAll": true}
+    ]
+}

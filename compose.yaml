@@ -1,0 +1,13 @@
+name: quarkus-github-app-async
+services:
+  sqs:
+    image: softwaremill/elasticmq-native:1.6.16
+    ports:
+      - "127.0.0.1:9324:9324"
+    volumes:
+      - ./local/elasticmq.conf:/opt/elasticmq.conf:ro
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.0
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    ports:
+      - "127.0.0.1:8000:8000"
